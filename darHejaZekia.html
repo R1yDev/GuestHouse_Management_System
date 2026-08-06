@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dar Haja Zekia — Guesthouse Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>
+    tailwind.config = {
+        theme: { extend: { fontFamily: { display: ['Cinzel','serif'], sans: ['DM Sans','sans-serif'] } } }
+    }
+    </script>
+    <style>
+        :root {
+            --bg: #f0f5fa; --elevated: #ffffff; --card: #ffffff; --card-hover: #f5f9fc;
+            --border: #d4e0ec; --border-light: #e6eef5;
+            --fg: #1a2a3a; --fg-sec: #3d5168; --muted: #7a8fa3;
+            --accent: #1B6B93; --accent-light: #2A8FBD; --accent-dark: #145273;
+            --accent-bg: #e6f2f8;
+            --avail: #27AE60; --avail-light: #2ECC71; --avail-bg: #eafaf0;
+            --danger: #E74C3C; --danger-bg: #fdecea;
+            --warning: #F39C12; --warning-bg: #fef9e7;
+            --s1: #2196F3; --s1-bg: #E3F2FD;
+            --s2: #1565C0; --s2-bg: #E1EEFA;
+            --s3: #0D47A1; --s3-bg: #D6E8F9;
+            --boat: #E67E22; --boat-bg: #FEF5E7; --boat-border: #F5CBA7;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'DM Sans', sans-serif; color: var(--fg);
+            background: var(--bg);
+            background-image:
+                radial-gradient(ellipse at 10% 0%, rgba(27,107,147,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 90% 100%, rgba(27,107,147,0.04) 0%, transparent 50%);
+            min-height: 100vh;
+        }
+        ::-webkit-scrollbar { height: 6px; width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--elevated); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        .calendar-scroll { overflow-x: auto; overflow-y: visible; }
+        .calendar-grid { display: grid; gap: 2px; min-width: max-content; }
+        .sticky-left { position: sticky; left: 0; z-index: 10; background: var(--card); }
+        .sticky-left-header { position: sticky; left: 0; z-index: 20; background: var(--elevated); }
+        .cal-header {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; padding: 6px 2px; font-size: 11px;
+            color: var(--muted); text-align: center; min-width: 44px; height: 52px;
+        }
+        .cal-header .month-tag { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 1px; }
+        .cal-header .day-name { font-size: 10px; opacity: 0.7; }
+        .cal-header .day-num { font-size: 14px; font-weight: 600; color: var(--fg-sec); }
+        .cal-header.weekend .day-name, .cal-header.weekend .day-num { color: var(--accent-dark); }
+        .cal-header.today-col { background: var(--accent-bg); border-radius: 4px; }
+        .cal-header.today-col .day-num { color: var(--accent); font-weight: 700; }
+
+        .house-label {
+            display: flex; flex-direction: column; justify-content: center;
+            padding: 0 12px; min-width: 140px; height: 44px;
+            border-right: 2px solid var(--border);
+        }
+        .house-label .type-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 1px; }
+        .house-label .house-sub { font-size: 11px; color: var(--muted); }
+        .type-s1 .type-badge { color: var(--s1); }
+        .type-s2 .type-badge { color: var(--s2); }
+        .type-s3 .type-badge { color: var(--s3); }
+
+        .cal-cell {
+            width: 44px; height: 44px; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: default; transition: all 0.15s; position: relative;
+        }
+        .cal-cell.available { background: var(--avail-bg); cursor: pointer; border: 1px solid rgba(39,174,96,0.2); }
+        .cal-cell.available:hover { background: rgba(39,174,96,0.25); border-color: var(--avail-light); transform: scale(1.08); box-shadow: 0 2px 8px rgba(39,174,96,0.15); }
+        .cal-cell.available.weekend { background: rgba(39,174,96,0.12); }
+        .cal-cell.booked { color: #fff; font-size: 9px; font-weight: 600; overflow: hidden; cursor: pointer; }
+        .cal-cell.booked:hover { filter: brightness(1.1); transform: scale(1.05); z-index: 5; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .cal-cell.booked.type-s1 { background: var(--s1); }
+        .cal-cell.booked.type-s2 { background: var(--s2); }
+        .cal-cell.booked.type-s3 { background: var(--s3); }
+        .cal-cell.boat-only {
+            background: var(--boat-bg); color: var(--boat); border: 2px dashed var(--boat-border);
+            font-size: 11px; cursor: pointer;
+        }
+        .cal-cell.boat-only:hover { background: var(--boat-border); transform: scale(1.08); }
+        .cal-cell.cell-first { border-radius: 6px 2px 2px 6px; }
+        .cal-cell.cell-mid { border-radius: 2px; }
+        .cal-cell.cell-last { border-radius: 2px 6px 6px 2px; }
+        .cal-cell.cell-single { border-radius: 6px; }
+        .cal-cell.today-col::after { content:''; position:absolute; bottom:2px; left:50%; transform:translateX(-50%); width:4px; height:4px; border-radius:50%; background:var(--accent); }
+        .cal-cell.booked.today-col::after { background: #fff; }
+        .cal-cell.boat-only.today-col::after { background: var(--boat); }
+        .cell-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:40px; text-align:center; line-height:1.1; }
+
+        .stat-card {
+            background: var(--card); border: 1px solid var(--border-light); border-radius: 14px;
+            padding: 18px 22px; transition: all 0.25s; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .stat-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(27,107,147,0.1); }
+
+        .form-input {
+            width: 100%; padding: 10px 14px; background: var(--bg);
+            border: 1px solid var(--border); border-radius: 10px; color: var(--fg);
+            font-family: inherit; font-size: 14px; outline: none; transition: all 0.2s;
+        }
+        .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(27,107,147,0.1); background: var(--elevated); }
+        .form-input::placeholder { color: var(--muted); }
+        select.form-input { cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a8fa3' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 12px center;
+        }
+        label { font-size: 12px; font-weight: 600; color: var(--fg-sec); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .btn {
+            padding: 10px 20px; border-radius: 10px; font-family: inherit;
+            font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+            transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(27,107,147,0.3); }
+        .btn-primary:hover { background: var(--accent-light); box-shadow: 0 4px 16px rgba(27,107,147,0.35); }
+        .btn-ghost { background: transparent; color: var(--fg-sec); border: 1px solid var(--border); }
+        .btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+        .btn-danger { background: var(--danger); color: #fff; box-shadow: 0 2px 8px rgba(231,76,60,0.3); }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-success { background: var(--avail); color: #fff; box-shadow: 0 2px 8px rgba(39,174,96,0.3); }
+        .btn-success:hover { background: var(--avail-light); }
+        .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 8px; }
+        .btn-outline-blue { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+        .btn-outline-blue:hover { background: var(--accent); color: #fff; }
+
+        .filter-btn {
+            padding: 7px 18px; border-radius: 24px; font-size: 13px; font-weight: 500;
+            cursor: pointer; border: 1px solid var(--border); background: var(--elevated);
+            color: var(--muted); transition: all 0.2s; font-family: inherit;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .filter-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: 0 2px 10px rgba(27,107,147,0.3); }
+
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(26,42,58,0.5); backdrop-filter: blur(6px);
+            z-index: 100; display: flex; align-items: center; justify-content: center;
+            padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+        }
+        .modal-overlay.show { opacity: 1; pointer-events: all; }
+        .modal-box {
+            background: var(--card); border: 1px solid var(--border-light); border-radius: 20px;
+            padding: 32px; max-width: 520px; width: 100%;
+            transform: translateY(20px) scale(0.97); transition: transform 0.3s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .modal-overlay.show .modal-box { transform: translateY(0) scale(1); }
+
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+        .toast {
+            padding: 14px 22px; border-radius: 12px; font-size: 13px; font-weight: 500;
+            color: #fff; min-width: 280px; box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            animation: toastIn 0.35s cubic-bezier(0.22,1,0.36,1);
+        }
+        .toast.success { background: rgba(39,174,96,0.95); }
+        .toast.error { background: rgba(231,76,60,0.95); }
+        .toast.warning { background: rgba(243,156,18,0.95); color: #1a2a3a; }
+        .toast.info { background: rgba(27,107,147,0.95); }
+        @keyframes toastIn { from { opacity:0; transform:translateX(40px) scale(0.9); } to { opacity:1; transform:translateX(0) scale(1); } }
+
+        .schedule-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+            background: var(--bg); border-radius: 10px; border-left: 3px solid var(--accent);
+            transition: all 0.15s;
+        }
+        .schedule-item:hover { background: var(--accent-bg); transform: translateX(3px); }
+
+        .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+        .logo-img { height: 60px; width: auto; object-fit: contain; border-radius: 8px; filter: drop-shadow(0 2px 6px rgba(27,107,147,0.12)); }
+        .logo-img-sm { height: 32px; width: auto; object-fit: contain; border-radius: 6px; }
+
+        .section-card {
+            background: var(--card); border: 1px solid var(--border-light); border-radius: 18px;
+            padding: 28px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+
+        .header-bar {
+            background: rgba(255,255,255,0.92); border-bottom: 1px solid var(--border-light);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px);
+        }
+
+        .save-indicator {
+            display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted);
+            padding: 4px 12px; border-radius: 20px; background: var(--bg); border: 1px solid var(--border-light);
+        }
+        .save-indicator .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--avail); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+        .backup-bar {
+            background: linear-gradient(135deg, var(--accent-bg) 0%, #f0f5fa 100%);
+            border: 1px solid rgba(27,107,147,0.12); border-radius: 14px; padding: 20px 24px;
+        }
+
+        .boat-hint {
+            display: none; align-items: center; gap: 10px; padding: 10px 16px;
+            background: var(--boat-bg); border: 1px solid var(--boat-border); border-radius: 10px;
+            margin-bottom: 16px;
+        }
+        .boat-hint.visible { display: flex; }
+
+        .advance-badge {
+            display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700;
+            padding: 2px 8px; border-radius: 6px;
+            background: var(--avail-bg); color: var(--avail);
+        }
+        .advance-badge.pending {
+            background: var(--warning-bg); color: var(--warning);
+        }
+        .advance-badge.zero {
+            background: var(--bg); color: var(--muted);
+        }
+
+        .field-hidden { display: none !important; }
+
+        table { border-collapse: separate; border-spacing: 0; }
+        table thead tr th { position: sticky; top: 0; background: var(--card); z-index: 2; }
+        table tbody tr { transition: background 0.15s; }
+        table tbody tr:hover { background: var(--accent-bg); }
+
+        #import-file-input { display: none; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+        @media (max-width: 640px) {
+            .logo-img { height: 44px; }
+            .section-card { padding: 18px; border-radius: 14px; }
+            .backup-bar { padding: 16px; }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<div class="toast-container" id="toasts"></div>
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)hideModal()">
+    <div class="modal-box" id="modal-content"></div>
+</div>
+<input type="file" id="import-file-input" accept=".json" onchange="handleImportFile(event)">
+
+<header class="header-bar">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <img src="https://z-cdn-media.chatglm.cn/files/4b1a1f58-2971-4127-bab8-1ccf39a2d42c.jpg?auth_key=1885885310-3086784c711840eda3f4adca9bf596dd-0-b1f7d999b6c137017d2094a7dbdcf723" alt="Dar Haja Zekia" class="logo-img">
+            <div>
+                <h1 class="font-display text-lg sm:text-2xl font-bold tracking-wide" style="color:var(--fg)">Dar Haja Zekia</h1>
+                <p class="text-[10px] sm:text-xs font-medium tracking-[2px] uppercase" style="color:var(--accent)">Maison d'Hôtes — Management</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div class="save-indicator hidden sm:flex"><span class="dot"></span><span id="save-time">Saved locally</span></div>
+            <button class="btn btn-ghost btn-sm" onclick="goToToday()"><i class="fa-regular fa-calendar"></i><span class="hidden sm:inline"> Today</span></button>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 relative z-10">
+
+    <!-- Backup Bar -->
+    <section class="backup-bar mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--accent); box-shadow:0 2px 8px rgba(27,107,147,0.25)">
+                    <i class="fa-solid fa-hard-drive text-white text-sm"></i>
+                </div>
+                <div>
+                    <p class="text-sm font-semibold" style="color:var(--fg)">Save Bookings to Your Computer</p>
+                    <p class="text-xs" style="color:var(--muted)">Export a backup file or restore from a previous save</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button class="btn btn-primary btn-sm" onclick="exportToFile()"><i class="fa-solid fa-download"></i> Export Backup</button>
+                <button class="btn btn-outline-blue btn-sm" onclick="triggerImport()"><i class="fa-solid fa-upload"></i> Import Backup</button>
+            </div>
+        </div>
+        <div class="mt-3 flex items-center gap-4 text-xs flex-wrap" style="color:var(--muted)">
+            <span><i class="fa-solid fa-database mr-1"></i> <span id="total-bookings-count">0</span> bookings</span>
+            <span><i class="fa-regular fa-clock mr-1"></i> Last saved: <span id="last-saved-time">—</span></span>
+            <span><i class="fa-solid fa-file-arrow-down mr-1"></i> Last export: <span id="last-export-time">Never</span></span>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-6" id="stats-row"></section>
+
+    <!-- Calendar Controls -->
+    <section class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <div class="flex items-center gap-2 flex-wrap">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All Houses</button>
+            <button class="filter-btn" data-filter="S+1" onclick="setFilter('S+1')"><span class="inline-block w-2.5 h-2.5 rounded mr-1" style="background:var(--s1)"></span>S+1</button>
+            <button class="filter-btn" data-filter="S+2" onclick="setFilter('S+2')"><span class="inline-block w-2.5 h-2.5 rounded mr-1" style="background:var(--s2)"></span>S+2</button>
+            <button class="filter-btn" data-filter="S+3" onclick="setFilter('S+3')"><span class="inline-block w-2.5 h-2.5 rounded mr-1" style="background:var(--s3)"></span>S+3</button>
+        </div>
+        <div class="flex items-center gap-2">
+            <button class="btn btn-ghost btn-sm" onclick="shiftView(-7)"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="text-sm font-semibold min-w-[140px] text-center" style="color:var(--fg-sec)" id="view-label"></span>
+            <button class="btn btn-ghost btn-sm" onclick="shiftView(7)"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </section>
+
+    <!-- Calendar -->
+    <section class="section-card mb-6 !p-3 sm:!p-4">
+        <div class="calendar-scroll" id="calendar-scroll">
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+        <div class="flex items-center gap-5 mt-3 px-2 flex-wrap">
+            <div class="flex items-center gap-2 text-xs" style="color:var(--muted)"><div class="legend-dot" style="background:var(--avail);opacity:0.6"></div> Available</div>
+            <div class="flex items-center gap-2 text-xs" style="color:var(--muted)"><div class="legend-dot" style="background:var(--s1)"></div> S+1 Booked</div>
+            <div class="flex items-center gap-2 text-xs" style="color:var(--muted)"><div class="legend-dot" style="background:var(--s2)"></div> S+2 Booked</div>
+            <div class="flex items-center gap-2 text-xs" style="color:var(--muted)"><div class="legend-dot" style="background:var(--s3)"></div> S+3 Booked</div>
+            <div class="flex items-center gap-2 text-xs" style="color:var(--muted)"><div style="width:10px;height:10px;border-radius:3px;border:2px dashed var(--boat-border);background:var(--boat-bg);flex-shrink:0"></div> Boat Trip Only</div>
+        </div>
+    </section>
+
+    <!-- Form + Schedule -->
+    <section class="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-6">
+<div class="lg:col-span-3 section-card" id="booking-form-section">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:var(--accent-bg)"><i id="form-section-icon" class="fa-solid fa-plus-circle" style="color:var(--accent)"></i></div>
+                <h2 id="form-section-title" class="font-display text-lg font-semibold" style="color:var(--fg)">New Booking</h2>
+            </div>
+
+            <!-- Boat trip hint (shown only for boat-only) -->
+            <div class="boat-hint" id="boat-hint">
+                <i class="fa-solid fa-ship" style="color:var(--boat);font-size:16px"></i>
+                <p class="text-sm" style="color:var(--fg-sec)"><strong>Boat Trip Only</strong> — just pick the trip date, no check-out needed. This won't block the house.</p>
+            </div>
+
+            <form id="booking-form" onsubmit="handleBookingSubmit(event)">
+<!-- Service Type first, then the rest of the fields appear after selection -->
+                <div class="mb-5">
+<label class="block mb-1.5">Service Type</label>
+                    <select class="form-input" id="f-service" onchange="onServiceChange()" required>
+                        <option value="">Select a service type...</option>
+                        <option value="stay">Stay Only</option>
+                        <option value="boat">Boat Trip Only</option>
+                        <option value="stay+boat">Stay + Boat Trip</option>
+                    </select>
+                </div>
+                <div id="form-rest" class="field-hidden">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div><label class="block mb-1.5">Customer Name</label><input type="text" class="form-input" id="f-name" placeholder="Full name" required></div>
+                    <div><label class="block mb-1.5">Phone</label><input type="tel" class="form-input" id="f-phone" placeholder="+212 6XX XXX XXX" required></div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div id="field-house"><label class="block mb-1.5">House Type</label>
+                        <select class="form-input" id="f-type">
+                            <option value="S+1">S+1</option>
+                            <option value="S+2">S+2</option>
+                            <option value="S+3">S+3</option>
+                        </select>
+                    </div>
+                    <div id="field-checkin"><label class="block mb-1.5">Check-in Date</label><input type="date" class="form-input" id="f-checkin" required></div>
+                </div>
+                <!-- Check-out: hidden for boat-only -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4" id="checkout-row">
+                    <div><label class="block mb-1.5">Check-out Date</label><input type="date" class="form-input" id="f-checkout"></div>
+                    <div></div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block mb-1.5">Advance Paid (MAD)</label>
+                        <div style="position:relative">
+                            <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-weight:600">MAD</span>
+                            <input type="number" class="form-input" id="f-advance" placeholder="0" min="0" step="0.01" style="padding-left:58px">
+                        </div>
+                    </div>
+                    <div><label class="block mb-1.5">Notes</label><input type="text" class="form-input" id="f-notes" placeholder="Special requests..."></div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Add Booking</button>
+                    <button type="button" class="btn btn-ghost" onclick="resetForm()">Clear</button>
+                </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="lg:col-span-2 section-card">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:var(--accent-bg)"><i class="fa-regular fa-clock" style="color:var(--accent)"></i></div>
+                <h2 class="font-display text-lg font-semibold" style="color:var(--fg)">Today's Schedule</h2>
+            </div>
+            <div id="today-schedule" class="flex flex-col gap-2 mb-6"></div>
+            <div class="flex items-center gap-3 mb-4 pt-4" style="border-top:1px solid var(--border-light)">
+                <div class="w-7 h-7 rounded-md flex items-center justify-center" style="background:var(--boat-bg)"><i class="fa-solid fa-ship text-xs" style="color:var(--boat)"></i></div>
+                <h3 class="text-sm font-semibold" style="color:var(--fg-sec)">Upcoming Boat Trips</h3>
+            </div>
+<div id="boat-trips" class="flex flex-col gap-2" style="max-height:340px;overflow-y:auto;padding-right:4px;"></div>
+        </div>
+    </section>
+
+<!-- All Bookings Table -->
+    <section class="section-card mb-8">
+        <div class="flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:var(--accent-bg)"><i class="fa-solid fa-list" style="color:var(--accent)"></i></div>
+                <h2 class="font-display text-lg font-semibold" style="color:var(--fg)">All Bookings</h2>
+            </div>
+            <span class="text-xs font-medium px-3 py-1.5 rounded-full" style="background:var(--accent-bg);color:var(--accent)" id="booking-count"></span>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap mb-4">
+            <button class="filter-btn active" data-bfilter="all" onclick="setBookingsFilter('all')">All</button>
+            <button class="filter-btn" data-bfilter="stay" onclick="setBookingsFilter('stay')">Stay Only</button>
+            <button class="filter-btn" data-bfilter="boat" onclick="setBookingsFilter('boat')">Boat Trip Only</button>
+            <button class="filter-btn" data-bfilter="stay+boat" onclick="setBookingsFilter('stay+boat')">Stay + Boat</button>
+        </div>
+        <div class="overflow-x-auto rounded-xl" style="border:1px solid var(--border-light)">
+            <table class="w-full text-sm" style="min-width:720px">
+                <thead>
+                    <tr style="color:var(--muted); border-bottom:1px solid var(--border-light)">
+                        <th class="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">Guest</th>
+                        <th class="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">House</th>
+                        <th class="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">Service</th>
+                        <th class="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">Date / Dates</th>
+                        <th class="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">Nights</th>
+                        <th class="text-left py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">Advance</th>
+                        <th class="text-right py-3 px-4 font-semibold text-xs uppercase tracking-wider" style="background:var(--bg)">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="bookings-tbody"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<footer class="text-center pb-8">
+    <img src="https://z-cdn-media.chatglm.cn/files/4b1a1f58-2971-4127-bab8-1ccf39a2d42c.jpg?auth_key=1885885310-3086784c711840eda3f4adca9bf596dd-0-b1f7d999b6c137017d2094a7dbdcf723" alt="Dar Haja Zekia" class="logo-img-sm mx-auto mb-2 opacity-40">
+    <p class="text-xs" style="color:var(--muted)">Dar Haja Zekia — SÉJOUR · DÉTENTE · NATURE · SOUVENIRS</p>
+</footer>
+
+<script>
+const HOUSES = [
+    { id: 's1-a', type: 'S+1', label: 'S+1 — House A' },
+    { id: 's1-b', type: 'S+1', label: 'S+1 — House B' },
+{ id: 's2-a', type: 'S+2', label: 'S+2 — House A' },
+    { id: 's2-b', type: 'S+2', label: 'S+2 — House B' },
+    { id: 's2-c', type: 'S+2', label: 'S+2 — House C' },
+    { id: 's3-a', type: 'S+3', label: 'S+3 — House' },
+];
+
+// Nightly price per house type (in DT)
+const HOUSE_PRICES = { 'S+1': 100, 'S+2': 140, 'S+3': 150 };
+function getNightlyPrice(type) { return HOUSE_PRICES[type] || 0; }
+function getStayTotal(b) {
+    if (isBoatOnly(b) || !b.checkOut) return 0;
+    return daysBetween(b.checkIn, b.checkOut) * getNightlyPrice(b.houseId ? getHouse(b.houseId).type : 'S+1');
+}
+
+const DEFAULT_BOOKINGS = [
+    { id:1, name:'Ahmed Benali', phone:'+212 600 123 456', houseId:'s1-a', checkIn:'2025-08-03', checkOut:'2025-08-06', service:'stay', advance:1500, notes:'Family of 4' },
+    { id:2, name:'Sarah Martin', phone:'+33 6 12 34 56 78', houseId:'s1-b', checkIn:'2025-08-03', checkOut:'2025-08-06', service:'stay', advance:0, notes:'Couple from France' },
+    { id:3, name:'Youssef Alami', phone:'+212 661 987 654', houseId:'s1-a', checkIn:'2025-08-06', checkOut:'2025-08-09', service:'stay+boat', advance:2000, notes:'Scheduled after Ahmed leaves' },
+    { id:4, name:'Claire Dupont', phone:'+33 7 98 76 54 32', houseId:'s2-a', checkIn:'2025-08-01', checkOut:'2025-08-05', service:'stay', advance:800, notes:'' },
+    { id:5, name:'Mohamed Fassi', phone:'+212 622 555 444', houseId:'s2-b', checkIn:'2025-08-05', checkOut:'2025-08-10', service:'stay+boat', advance:3000, notes:'Boat trip on Aug 7' },
+    { id:6, name:'Jean-Pierre Moreau', phone:'+33 6 55 44 33 22', houseId:'s3-a', checkIn:'2025-08-02', checkOut:'2025-08-08', service:'stay', advance:0, notes:'Group of 8' },
+    { id:7, name:'Fatima Zahra', phone:'+212 633 111 222', houseId:'s2-a', checkIn:'2025-08-08', checkOut:'2025-08-12', service:'stay', advance:1000, notes:'Returning guest' },
+    { id:8, name:'Pierre Lefevre', phone:'+33 6 11 22 33 44', houseId:'s2-a', checkIn:'2025-08-04', checkOut:null, service:'boat', advance:500, notes:'Boat trip only — 3pm departure' },
+    { id:9, name:'Niazi Karim', phone:'+212 644 777 888', houseId:'s1-b', checkIn:'2025-08-10', checkOut:null, service:'boat', advance:500, notes:'Boat trip only — morning trip' },
+];
+
+let bookings = [];
+let nextId = 20;
+let viewStart = '2025-08-01';
+const VIEW_DAYS = 35;
+let filterType = 'all';
+let editingId = null;
+let bookingsServiceFilter = 'all';
+
+// ===== HELPERS =====
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+function addDays(ds, n) { const d = new Date(ds+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().split('T')[0]; }
+function daysBetween(a, b) { return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000); }
+function formatDate(ds) { if(!ds) return '—'; return new Date(ds+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function formatDateFull(ds) { if(!ds) return '—'; return new Date(ds+'T00:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function getHouse(id) { return HOUSES.find(h=>h.id===id); }
+function isWeekend(ds) { const d=new Date(ds+'T00:00:00').getDay(); return d===0||d===5; }
+function typeColorClass(t) { return t==='S+1'?'type-s1':t==='S+2'?'type-s2':'type-s3'; }
+function typeColor(t) { return t==='S+1'?'var(--s1)':t==='S+2'?'var(--s2)':'var(--s3)'; }
+function typeBg(t) { return t==='S+1'?'var(--s1-bg)':t==='S+2'?'var(--s2-bg)':'var(--s3-bg)'; }
+function nowTimeStr() { return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+function nowDateTimeStr() { return new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function formatMoney(v) { const n = parseFloat(v)||0; return n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2}); }
+
+function isBoatOnly(b) { return b.service === 'boat'; }
+
+// Get bookings that occupy a house cell (stays and stay+boat, but NOT boat-only)
+function getStayBookingForCell(houseId, date) {
+    return bookings.find(b => !isBoatOnly(b) && b.houseId === houseId && date >= b.checkIn && date < b.checkOut);
+}
+// Get boat-only bookings for a house on a specific date
+function getBoatOnlyForCell(houseId, date) {
+    return bookings.filter(b => isBoatOnly(b) && b.houseId === houseId && b.checkIn === date);
+}
+
+// ===== SERVICE CHANGE: show/hide fields =====
+function onServiceChange() {
+    const svc = document.getElementById('f-service').value;
+    const isBoat = svc === 'boat';
+    const hint = document.getElementById('boat-hint');
+    const checkoutRow = document.getElementById('checkout-row');
+    const houseField = document.getElementById('field-house');
+    const checkinField = document.getElementById('field-checkin');
+    const rest = document.getElementById('form-rest');
+    const restVisible = rest && !rest.classList.contains('field-hidden');
+
+    // Reveal the rest of the form once a service type is selected
+    if (svc) {
+        if (rest) rest.classList.remove('field-hidden');
+    } else {
+        if (rest) rest.classList.add('field-hidden');
+    }
+
+if (isBoat) {
+        hint.classList.add('visible');
+        checkoutRow.classList.add('field-hidden');
+        houseField.classList.add('field-hidden');
+        document.getElementById('f-checkout').removeAttribute('required');
+    } else {
+        hint.classList.remove('visible');
+        checkoutRow.classList.remove('field-hidden');
+        houseField.classList.remove('field-hidden');
+        document.getElementById('f-checkout').setAttribute('required', '');
+    }
+}
+
+// ===== LOCAL STORAGE =====
+function saveToLocal() {
+    localStorage.setItem('dhz_bookings', JSON.stringify(bookings));
+    localStorage.setItem('dhz_nextId', String(nextId));
+    localStorage.setItem('dhz_saved_at', nowDateTimeStr());
+    updateSaveIndicator();
+}
+function loadFromLocal() {
+    const s = localStorage.getItem('dhz_bookings');
+    if (s) { bookings = JSON.parse(s); nextId = parseInt(localStorage.getItem('dhz_nextId'))||20; return true; }
+    return false;
+}
+function updateSaveIndicator() {
+    const t = localStorage.getItem('dhz_saved_at') || '—';
+    document.getElementById('save-time').textContent = 'Saved ' + t;
+    document.getElementById('last-saved-time').textContent = t;
+    document.getElementById('total-bookings-count').textContent = bookings.length;
+}
+
+// ===== EXPORT / IMPORT =====
+function exportToFile() {
+    const data = { guesthouse:'Dar Haja Zekia', exportedAt:new Date().toISOString(), version:2, bookings, nextId };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DarHajaZekia_Bookings_${todayStr().replace(/-/g,'')}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    localStorage.setItem('dhz_last_export', nowDateTimeStr());
+    document.getElementById('last-export-time').textContent = nowDateTimeStr();
+    showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Saved to your computer successfully`, 'success');
+}
+function triggerImport() { document.getElementById('import-file-input').click(); }
+function handleImportFile(event) {
+    const file = event.target.files[0]; if (!file) return;
+    if (!file.name.endsWith('.json')) { showToast('Please select a .json file','error'); event.target.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.bookings || !Array.isArray(data.bookings)) throw new Error('Invalid format');
+            for (const b of data.bookings) { if (!b.name || !b.checkIn) throw new Error('Missing fields in: '+(b.name||'?')); }
+            window._pendingImport = data;
+            showModal(`<div class="text-center py-2">
+                <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style="background:var(--accent-bg)"><i class="fa-solid fa-file-import text-2xl" style="color:var(--accent)"></i></div>
+                <h3 class="font-display text-xl font-semibold mb-2" style="color:var(--fg)">Import Bookings?</h3>
+                <p class="text-sm mb-1" style="color:var(--muted)">File: <strong style="color:var(--fg)">${file.name}</strong></p>
+                <p class="text-sm mb-6" style="color:var(--muted)">Contains <strong style="color:var(--accent)">${data.bookings.length} booking${data.bookings.length!==1?'s':''}</strong></p>
+                <div class="p-4 rounded-xl mb-6 text-left" style="background:var(--warning-bg);border:1px solid rgba(243,156,18,0.2)">
+                    <p class="text-xs font-bold uppercase tracking-wider mb-1" style="color:var(--warning)"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Important</p>
+                    <p class="text-sm" style="color:var(--fg-sec)">Choose how to handle your current bookings:</p>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button class="btn btn-danger w-full justify-center" onclick="doImport('replace')"><i class="fa-solid fa-exchange-alt"></i> Replace All</button>
+                    <button class="btn btn-success w-full justify-center" onclick="doImport('merge')"><i class="fa-solid fa-code-merge"></i> Merge</button>
+                    <button class="btn btn-ghost w-full justify-center" onclick="hideModal()">Cancel</button>
+                </div>
+            </div>`);
+        } catch(err) { showToast(`Invalid file: ${err.message}`,'error'); }
+    };
+    reader.readAsText(file); event.target.value = '';
+}
+function doImport(mode) {
+    const data = window._pendingImport; if (!data) return;
+    if (mode==='replace') { bookings=data.bookings; nextId=data.nextId||(Math.max(...bookings.map(b=>b.id),0)+1); }
+    else {
+        const maxId = bookings.length?Math.max(...bookings.map(b=>b.id)):0;
+        let offset = maxId+1;
+        for (const b of data.bookings) {
+            const dup = bookings.some(eb=>eb.name===b.name&&eb.houseId===b.houseId&&eb.checkIn===b.checkIn&&eb.service===b.service);
+            if (!dup) bookings.push({...b, id:offset++});
+        }
+        nextId = offset;
+    }
+    saveToLocal(); hideModal(); render();
+    showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Bookings ${mode==='replace'?'replaced':'merged'}`,'success');
+    window._pendingImport = null;
+}
+
+// ===== AVAILABILITY (only for stay-based bookings) =====
+function findAvailableHouse(type, ci, co, excludeId) {
+    for (const h of HOUSES.filter(x=>x.type===type)) {
+        if (!bookings.find(b=>!isBoatOnly(b)&&b.id!==excludeId&&b.houseId===h.id&&b.checkIn<co&&b.checkOut>ci)) return h;
+    }
+    return null;
+}
+function findNextAvailable(type, from, nights) {
+    let a = from;
+    for (let i=0;i<60;i++) { const out=addDays(a,nights); const h=findAvailableHouse(type,a,out); if(h) return {house:h,checkIn:a,checkOut:out}; a=addDays(a,1); }
+    return null;
+}
+function getAvailabilitySummary(type, ci, co, excludeId) {
+    return HOUSES.filter(h=>h.type===type).map(house=>{
+        const c = bookings.find(b=>!isBoatOnly(b)&&b.id!==excludeId&&b.houseId===house.id&&b.checkIn<co&&b.checkOut>ci);
+        return { house, available:!c, conflictingBooking:c };
+    });
+}
+
+// ===== TOAST / MODAL =====
+function showToast(msg, type='info') {
+    const c=document.getElementById('toasts'); const t=document.createElement('div');
+    t.className=`toast ${type}`; t.innerHTML=msg; c.appendChild(t);
+    setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity 0.3s';setTimeout(()=>t.remove(),300);},3500);
+}
+function showModal(html) { document.getElementById('modal-content').innerHTML=html; document.getElementById('modal').classList.add('show'); }
+function hideModal() { document.getElementById('modal').classList.remove('show'); }
+
+// ===== RENDER: STATS =====
+function renderStats() {
+    const today = todayStr();
+    const tonight = bookings.filter(b=>!isBoatOnly(b)&&b.checkIn<=today&&b.checkOut>today);
+    const ci = bookings.filter(b=>!isBoatOnly(b)&&b.checkIn===today);
+    const co = bookings.filter(b=>!isBoatOnly(b)&&b.checkOut===today);
+    const boatsSoon = bookings.filter(b=>b.service.includes('boat')&&b.checkIn>=today&&b.checkIn<=addDays(today,7));
+    const totalAdvance = bookings.reduce((s,b)=>s+(parseFloat(b.advance)||0),0);
+
+    document.getElementById('stats-row').innerHTML = [
+        { label:'Occupied Tonight', value:tonight.length, color:'var(--accent)', icon:'fa-solid fa-bed' },
+        { label:'Check-ins Today', value:ci.length, color:'var(--avail)', icon:'fa-solid fa-arrow-right-to-bracket' },
+        { label:'Check-outs Today', value:co.length, color:'var(--warning)', icon:'fa-solid fa-arrow-right-from-bracket' },
+        { label:'Boat Trips (7d)', value:boatsSoon.length, color:'var(--boat)', icon:'fa-solid fa-ship' },
+        { label:'Total Advance', value:`${formatMoney(totalAdvance)}`, color:'var(--avail)', icon:'fa-solid fa-wallet' },
+    ].map(s=>`<div class="stat-card"><div class="flex items-center justify-between mb-2"><p class="text-[10px] sm:text-xs font-semibold uppercase tracking-wider" style="color:var(--muted)">${s.label}</p><i class="${s.icon} text-sm" style="color:${s.color};opacity:0.5"></i></div><p class="text-xl sm:text-2xl font-bold" style="color:${s.color}">${s.value}</p></div>`).join('');
+}
+
+// ===== RENDER: CALENDAR =====
+function renderCalendar() {
+    const today = todayStr();
+    const filtered = filterType==='all'?HOUSES:HOUSES.filter(h=>h.type===filterType);
+    const grid = document.getElementById('calendar-grid');
+    grid.style.gridTemplateColumns = `140px repeat(${VIEW_DAYS},44px)`;
+    let html = `<div class="sticky-left-header" style="min-width:140px;height:52px;border-bottom:2px solid var(--border);border-right:2px solid var(--border)"></div>`;
+
+    for (let i=0;i<VIEW_DAYS;i++) {
+        const date=addDays(viewStart,i); const d=new Date(date+'T00:00:00');
+        const dn=d.getDate(); const mn=d.toLocaleDateString('en',{weekday:'short'});
+        const we=isWeekend(date); const isT=date===today;
+        const mName=dn===1?d.toLocaleDateString('en',{month:'short'}):'';
+        html+=`<div class="cal-header ${we?'weekend':''} ${isT?'today-col':''}">${mName?`<span class="month-tag">${mName}</span>`:''}<span class="day-name">${mn}</span><span class="day-num">${dn}</span></div>`;
+    }
+
+    for (const house of filtered) {
+        const tc=typeColorClass(house.type);
+        html+=`<div class="house-label sticky-left ${tc}" style="border-bottom:1px solid var(--border-light)"><span class="type-badge">${house.type}</span><span class="house-sub">${house.label.split('—')[1]?.trim()||''}</span></div>`;
+
+        for (let i=0;i<VIEW_DAYS;i++) {
+            const date=addDays(viewStart,i);
+            const stay=getStayBookingForCell(house.id,date);
+            const boats=getBoatOnlyForCell(house.id,date);
+            const isT=date===today; const we=isWeekend(date);
+
+            if (stay) {
+                const iF=date===stay.checkIn; const iL=date===addDays(stay.checkOut,-1);
+                const iS=stay.checkIn===addDays(stay.checkOut,-1);
+                let rc=iS||(iF&&iL)?'cell-single':iF?'cell-first':iL?'cell-last':'cell-mid';
+                const show=iF||iS; const boat=stay.service.includes('boat');
+                const fn=stay.name.split(' ')[0];
+                html+=`<div class="cal-cell booked ${tc} ${rc} ${isT?'today-col':''}" title="${stay.name}\n${formatDate(stay.checkIn)} → ${formatDate(stay.checkOut)} (${daysBetween(stay.checkIn,stay.checkOut)} nights)\n${stay.service}${boat?' — Boat':''}\nAdvance: ${formatMoney(stay.advance)} MAD\n${stay.notes||''}" onclick="showBookingDetail(${stay.id})">${show?`<span class="cell-label">${fn}${boat?' <i class="fa-solid fa-ship" style="font-size:7px"></i>':''}</span>`:''}</div>`;
+            } else if (boats.length > 0) {
+                const b = boats[0];
+                const fn = b.name.split(' ')[0];
+                html+=`<div class="cal-cell boat-only cell-single ${isT?'today-col':''}" title="${b.name} — Boat Trip Only\nDate: ${formatDate(b.checkIn)}\nAdvance: ${formatMoney(b.advance)} MAD\n${b.notes||''}" onclick="showBookingDetail(${b.id})"><i class="fa-solid fa-ship" style="font-size:10px"></i></div>`;
+            } else {
+                html+=`<div class="cal-cell available ${we?'weekend':''} ${isT?'today-col':''}" title="Available — Click to book" onclick="quickBook('${house.id}','${date}')"></div>`;
+            }
+        }
+    }
+    grid.innerHTML = html;
+
+    const sD=new Date(viewStart+'T00:00:00'); const eD=new Date(addDays(viewStart,VIEW_DAYS-1)+'T00:00:00');
+    document.getElementById('view-label').textContent = sD.getMonth()===eD.getMonth()?sD.toLocaleDateString('en',{month:'long',year:'numeric'}):`${sD.toLocaleDateString('en',{month:'short'})} — ${eD.toLocaleDateString('en',{month:'short',year:'numeric'})}`;
+
+    if (today>=viewStart&&today<addDays(viewStart,VIEW_DAYS)) {
+        const idx=daysBetween(viewStart,today); const el=document.getElementById('calendar-scroll');
+        setTimeout(()=>el.scrollTo({left:Math.max(0,140+idx*46-el.clientWidth/3),behavior:'smooth'}),100);
+    }
+}
+
+// ===== RENDER: TODAY SCHEDULE =====
+function renderTodaySchedule() {
+    const today=todayStr();
+    const ci=bookings.filter(b=>!isBoatOnly(b)&&b.checkIn===today);
+    const co=bookings.filter(b=>!isBoatOnly(b)&&b.checkOut===today);
+    const st=bookings.filter(b=>!isBoatOnly(b)&&b.checkIn<today&&b.checkOut>today);
+    const bt=bookings.filter(b=>b.service.includes('boat')&&b.checkIn===today);
+    let html='';
+    if(!ci.length&&!co.length&&!st.length&&!bt.length) { html=`<div class="text-center py-6"><i class="fa-regular fa-calendar-check text-2xl mb-2" style="color:var(--border)"></i><p class="text-sm" style="color:var(--muted)">No activity today.</p></div>`; }
+    else {
+        if(ci.length){ html+=`<p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--avail)"><i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> Arrivals</p>`; ci.forEach(b=>{const h=getHouse(b.houseId); html+=`<div class="schedule-item" style="border-left-color:var(--avail)"><div><p class="text-sm font-semibold" style="color:var(--fg)">${b.name}</p><p class="text-xs" style="color:var(--muted)">${h.label} · ${daysBetween(b.checkIn,b.checkOut)} nights${b.advance?` · <span style="color:var(--avail);font-weight:600">${formatMoney(b.advance)} MAD</span>`:''}</p></div></div>`;}); }
+        if(co.length){ html+=`<p class="text-xs font-bold uppercase tracking-wider mb-2 mt-4" style="color:var(--warning)"><i class="fa-solid fa-arrow-right-from-bracket mr-1"></i> Departures</p>`; co.forEach(b=>{const h=getHouse(b.houseId); html+=`<div class="schedule-item" style="border-left-color:var(--warning)"><div><p class="text-sm font-semibold" style="color:var(--fg)">${b.name}</p><p class="text-xs" style="color:var(--muted)">${h.label}${b.advance?` · Paid: <span style="color:var(--avail);font-weight:600">${formatMoney(b.advance)} MAD</span>`:''}</p></div></div>`;}); }
+        if(st.length){ html+=`<p class="text-xs font-bold uppercase tracking-wider mb-2 mt-4" style="color:var(--accent)"><i class="fa-solid fa-bed mr-1"></i> Staying</p>`; st.forEach(b=>{const h=getHouse(b.houseId); const r=daysBetween(today,b.checkOut); html+=`<div class="schedule-item" style="border-left-color:var(--accent)"><div><p class="text-sm font-semibold" style="color:var(--fg)">${b.name}</p><p class="text-xs" style="color:var(--muted)">${h.label} · ${r}n left${b.advance?` · <span style="color:var(--avail);font-weight:600">${formatMoney(b.advance)} MAD</span>`:''}</p></div></div>`;}); }
+        if(bt.length){ html+=`<p class="text-xs font-bold uppercase tracking-wider mb-2 mt-4" style="color:var(--boat)"><i class="fa-solid fa-ship mr-1"></i> Boat Trips Today</p>`; bt.forEach(b=>{ html+=`<div class="schedule-item" style="border-left-color:var(--boat)"><i class="fa-solid fa-ship text-xs" style="color:var(--boat)"></i><div><p class="text-sm font-semibold" style="color:var(--fg)">${b.name}</p><p class="text-xs" style="color:var(--muted)">Boat trip${b.advance?` · <span style="color:var(--avail);font-weight:600">${formatMoney(b.advance)} MAD</span>`:''}</p></div></div>`;}); }
+    }
+    document.getElementById('today-schedule').innerHTML=html;
+
+    // Upcoming boat trips (future)
+    const futureBoats=bookings.filter(b=>b.service.includes('boat')&&b.checkIn>today&&b.checkIn<=addDays(today,14)).sort((a,b)=>a.checkIn.localeCompare(b.checkIn));
+    let bh='';
+    if(!futureBoats.length) bh=`<p class="text-sm" style="color:var(--muted)">No upcoming boat trips.</p>`;
+else futureBoats.forEach(b=>{const h=getHouse(b.houseId); bh+=`<div class="schedule-item" style="border-left-color:var(--boat)"><i class="fa-solid fa-ship text-xs" style="color:var(--boat)"></i><div class="flex-1 min-w-0"><p class="text-sm font-semibold" style="color:var(--fg)">${b.name}</p><p class="text-xs" style="color:var(--muted)">${formatDate(b.checkIn)}${isBoatOnly(b)?' (boat only)':` · ${h.type}`}${b.advance?` · <span style="color:var(--avail);font-weight:600">${formatMoney(b.advance)} MAD</span>`:''}</p></div><div class="flex items-center gap-1 flex-shrink-0"><button class="btn btn-ghost btn-sm" style="padding:4px 8px;border-color:transparent;color:var(--accent)" onclick="editBooking(${b.id})" title="Edit boat trip"><i class="fa-solid fa-pen text-xs"></i></button><button class="btn btn-ghost btn-sm" style="padding:4px 8px;border-color:transparent;color:var(--danger)" onclick="confirmDelete(${b.id})" title="Clear boat trip"><i class="fa-solid fa-trash text-xs"></i></button></div></div>`;});
+    document.getElementById('boat-trips').innerHTML=bh;
+}
+
+// ===== RENDER: TABLE =====
+function setBookingsFilter(type) {
+    bookingsServiceFilter = type;
+    document.querySelectorAll('[data-bfilter]').forEach(b=>b.classList.toggle('active',b.dataset.bfilter===type));
+    renderBookingsTable();
+}
+function renderBookingsTable() {
+    const filtered = bookingsServiceFilter==='all' ? bookings : bookings.filter(b=>b.service===bookingsServiceFilter);
+    const sorted=[...filtered].sort((a,b)=>(a.checkIn||'').localeCompare(b.checkIn||''));
+    document.getElementById('booking-count').textContent=`${sorted.length} booking${sorted.length!==1?'s':''}`;
+    let html='';
+    if(!sorted.length) html=`<tr><td colspan="7" class="text-center py-8" style="color:var(--muted)">No bookings yet.</td></tr>`;
+    else sorted.forEach(b=>{
+        const h=getHouse(b.houseId); const boat=b.service.includes('boat');
+        const isBoat=isBoatOnly(b);
+        const sl=b.service==='stay'?'Stay':b.service==='boat'?'Boat Trip':'Stay + Boat';
+        const adv=parseFloat(b.advance)||0;
+
+        // Date/dates column
+        let dateStr=''; let nightsStr='';
+        if(isBoat) { dateStr=formatDate(b.checkIn); nightsStr='—'; }
+        else { dateStr=`${formatDate(b.checkIn)} → ${formatDate(b.checkOut)}`; nightsStr=daysBetween(b.checkIn,b.checkOut); }
+
+        // Advance badge
+        let advBadge='';
+        if(adv>0) advBadge=`<span class="advance-badge"><i class="fa-solid fa-coins" style="font-size:9px"></i> ${formatMoney(adv)}</span>`;
+        else advBadge=`<span class="advance-badge zero">0</span>`;
+
+        const past=!isBoat&&b.checkOut<=todayStr();
+
+        html+=`<tr style="border-bottom:1px solid var(--border-light);${past?'opacity:0.4':''}">
+<td class="py-3 px-4"><p class="font-semibold" style="color:var(--fg)">${b.name}</p><p class="text-xs" style="color:var(--muted)">${b.phone}</p></td>
+            <td class="py-3 px-4">${isBoat?`<span class="text-sm" style="color:var(--muted)">—</span>`:`<span class="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg" style="background:${typeBg(h.type)};color:${typeColor(h.type)}"><span class="w-1.5 h-1.5 rounded-sm" style="background:${typeColor(h.type)}"></span>${h.type}</span><p class="text-xs mt-0.5" style="color:var(--muted)">${h.label.split('—')[1]?.trim()||''}</p>`}</td>
+            <td class="py-3 px-4 text-sm" style="color:var(--fg-sec)">${sl}${boat?' <i class="fa-solid fa-ship text-[10px]" style="color:var(--boat)"></i>':''}</td>
+            <td class="py-3 px-4 text-sm" style="color:var(--fg-sec)">${dateStr}</td>
+            <td class="py-3 px-4 text-sm font-bold" style="color:var(--accent)">${nightsStr}</td>
+            <td class="py-3 px-4">${advBadge}</td>
+<td class="py-3 px-4 text-right">
+                <button class="btn btn-ghost btn-sm" onclick="showBookingDetail(${b.id})" title="View"><i class="fa-solid fa-eye text-xs"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--accent);border-color:transparent" onclick="editBooking(${b.id})" title="Edit"><i class="fa-solid fa-pen text-xs"></i></button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--danger);border-color:transparent" onclick="confirmDelete(${b.id})" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+            </td>
+        </tr>`;
+    });
+    document.getElementById('bookings-tbody').innerHTML=html;
+}
+
+// ===== FULL RENDER =====
+function render() {
+    renderStats(); renderCalendar(); renderTodaySchedule(); renderBookingsTable();
+    document.getElementById('today-display').textContent=formatDateFull(todayStr());
+    updateSaveIndicator();
+    const le=localStorage.getItem('dhz_last_export');
+    document.getElementById('last-export-time').textContent=le||'Never';
+}
+
+// ===== EVENT HANDLERS =====
+function setFilter(type) { filterType=type; document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.dataset.filter===type)); renderCalendar(); }
+function shiftView(d) { viewStart=addDays(viewStart,d); renderCalendar(); }
+function goToToday() { viewStart=addDays(todayStr(),-Math.floor(VIEW_DAYS/3)); renderCalendar(); }
+function quickBook(hid,date) {
+    const h=getHouse(hid);
+    document.getElementById('f-service').value='stay';
+    onServiceChange();
+    document.getElementById('f-type').value=h.type;
+    document.getElementById('f-checkin').value=date;
+    document.getElementById('f-checkout').value=addDays(date,1);
+    document.getElementById('f-name').focus();
+    document.getElementById('booking-form').scrollIntoView({behavior:'smooth',block:'center'});
+    showToast(`Selected ${h.label} — ${formatDate(date)}`,'info');
+}
+
+function editBooking(id) {
+    hideModal();
+    const b=bookings.find(x=>x.id===id); if(!b)return;
+    editingId = id;
+    const h=getHouse(b.houseId);
+    document.getElementById('f-name').value = b.name;
+    document.getElementById('f-phone').value = b.phone;
+    document.getElementById('f-service').value = b.service;
+    document.getElementById('f-type').value = h ? h.type : 'S+1';
+    document.getElementById('f-checkin').value = b.checkIn || '';
+    document.getElementById('f-checkout').value = b.checkOut || '';
+    document.getElementById('f-advance').value = b.advance;
+    document.getElementById('f-notes').value = b.notes || '';
+onServiceChange();
+    // Update heading + button to reflect edit mode
+    document.getElementById('form-section-title').textContent = 'Edit Booking';
+    document.getElementById('form-section-title').style.color = 'var(--accent)';
+    document.getElementById('form-section-icon').className = 'fa-solid fa-pen';
+    const btn = document.querySelector('#booking-form button[type="submit"]');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Save Changes';
+    btn.classList.remove('btn-primary');
+    btn.classList.add('btn-success');
+    document.getElementById('booking-form').scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('f-name').focus();
+    showToast('Editing booking — make your changes then press Save','info');
+}
+
+function handleBookingSubmit(e) {
+    e.preventDefault();
+    const name=document.getElementById('f-name').value.trim();
+    const phone=document.getElementById('f-phone').value.trim();
+    const svc=document.getElementById('f-service').value;
+    const ci=document.getElementById('f-checkin').value;
+    const notes=document.getElementById('f-notes').value.trim();
+    const advance=parseFloat(document.getElementById('f-advance').value)||0;
+
+    if(!name||!phone||!ci){showToast('Please fill all required fields.','error');return;}
+
+    const isBoat = svc === 'boat';
+    let co = null;
+    let houseId = null;
+
+    if (isBoat) {
+        // Boat trip only: no check-out, assign first house of selected type (doesn't block)
+        const type = document.getElementById('f-type').value;
+        const housesOfType = HOUSES.filter(h=>h.type===type);
+        houseId = housesOfType.length > 0 ? housesOfType[0].id : 's1-a';
+        // Save the booking directly
+        if (editingId !== null) {
+            const b=bookings.find(x=>x.id===editingId);
+            if(b){Object.assign(b,{name,phone,houseId,checkIn:ci,checkOut:null,service:svc,advance,notes});}
+            saveToLocal(); render(); resetForm();
+            showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Boat trip updated for ${name}`,'success');
+        } else {
+            bookings.push({ id:nextId++, name, phone, houseId, checkIn:ci, checkOut:null, service:svc, advance, notes });
+            saveToLocal(); render(); resetForm();
+            showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Boat trip booked for ${name} on ${formatDate(ci)}`,'success');
+        }
+        return;
+    }
+
+    // Stay or Stay+Boat: need check-out and house availability
+    co = document.getElementById('f-checkout').value;
+    if(!co){showToast('Please select check-out date.','error');return;}
+    if(co<=ci){showToast('Check-out must be after check-in.','error');return;}
+
+    const type=document.getElementById('f-type').value;
+    const nights=daysBetween(ci,co);
+    // When editing, keep the current house if it still works for the new dates
+    let avail = null;
+    if (editingId !== null) {
+        const cur = bookings.find(x=>x.id===editingId);
+        const curHouse = cur ? getHouse(cur.houseId) : null;
+        if (curHouse && curHouse.type === type) {
+            const conflict = bookings.find(b=>!isBoatOnly(b)&&b.id!==editingId&&b.houseId===curHouse.id&&b.checkIn<co&&b.checkOut>ci);
+            if (!conflict) avail = curHouse;
+        }
+        if (!avail) avail = findAvailableHouse(type,ci,co,editingId);
+    } else {
+        avail = findAvailableHouse(type,ci,co,null);
+    }
+
+    if(avail) {
+        if (editingId !== null) {
+            const b=bookings.find(x=>x.id===editingId);
+            if(b){Object.assign(b,{name,phone,houseId:avail.id,checkIn:ci,checkOut:co,service:svc,advance,notes});}
+            saveToLocal(); render(); resetForm();
+            showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Booking updated for ${name} → ${avail.label} (${nights} nights)`,'success');
+        } else {
+            bookings.push({id:nextId++,name,phone,houseId:avail.id,checkIn:ci,checkOut:co,service:svc,advance,notes});
+            saveToLocal(); render(); resetForm();
+            showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Booked ${name} → ${avail.label} (${nights} nights)${advance?` · ${formatMoney(advance)} MAD advance`:''}`,'success');
+        }
+    } else {
+        const summary=getAvailabilitySummary(type,ci,co,editingId);
+        const sug=findNextAvailable(type,ci,nights);
+        let sh='<div class="mb-4"><p class="text-xs font-semibold uppercase tracking-wider mb-3" style="color:var(--muted)">House Status</p>';
+        summary.forEach(s=>{
+            const st=s.available?`<span style="color:var(--avail)"><i class="fa-solid fa-check-circle"></i> Available</span>`:`<span style="color:var(--danger)"><i class="fa-solid fa-times-circle"></i> ${s.conflictingBooking.name}</span>`;
+            sh+=`<div class="flex items-center justify-between py-2 px-3 rounded-lg mb-1.5" style="background:var(--bg)"><span class="text-sm font-medium" style="color:var(--fg-sec)">${s.house.label}</span><span class="text-sm">${st}</span></div>`;
+        });
+        sh+='</div>';
+        let sg='';
+        if(sug){
+            const sn=daysBetween(sug.checkIn,sug.checkOut);
+            sg=`<div class="p-4 rounded-xl mb-5" style="background:var(--avail-bg);border:1px solid rgba(39,174,96,0.25)"><p class="text-xs font-bold uppercase tracking-wider mb-2" style="color:var(--avail)"><i class="fa-solid fa-lightbulb mr-1"></i> Suggested</p><p class="text-base font-semibold mb-1" style="color:var(--fg)">${sug.house.label}</p><p class="text-sm" style="color:var(--fg-sec)">${formatDate(sug.checkIn)} → ${formatDate(sug.checkOut)} (${sn} nights)</p></div>
+            <button class="btn btn-success w-full justify-center" onclick="acceptSuggestion('${name}','${phone}','${type}','${sug.house.id}','${sug.checkIn}','${sug.checkOut}','${svc}',${advance},'${notes.replace(/'/g,"\\'")}')"><i class="fa-solid fa-check"></i> Accept Suggestion</button>`;
+        } else {
+            sg=`<div class="p-4 rounded-xl" style="background:var(--danger-bg);border:1px solid rgba(231,76,60,0.2)"><p class="text-sm" style="color:var(--danger)">No availability in next 60 days.</p></div>`;
+        }
+        showModal(`<div class="flex items-center gap-4 mb-5"><div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:var(--danger-bg)"><i class="fa-solid fa-calendar-xmark text-lg" style="color:var(--danger)"></i></div><div><h3 class="font-display text-lg font-semibold" style="color:var(--fg)">No Availability</h3><p class="text-sm" style="color:var(--muted)">${type} fully booked ${formatDate(ci)} → ${formatDate(co)}</p></div></div>${sh}${sg}<button class="btn btn-ghost w-full justify-center mt-4" onclick="hideModal()">Cancel</button>`);
+    }
+}
+
+function acceptSuggestion(name,phone,type,hid,ci,co,svc,advance,notes) {
+    if (editingId !== null) {
+        const b=bookings.find(x=>x.id===editingId);
+        if(b){Object.assign(b,{name,phone,houseId:hid,checkIn:ci,checkOut:co,service:svc,advance,notes});}
+        saveToLocal(); hideModal(); render(); resetForm();
+        const h=getHouse(hid);
+        showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Booking updated → ${h.label}`,'success');
+        return;
+    }
+    bookings.push({id:nextId++,name,phone,houseId:hid,checkIn:ci,checkOut:co,service:svc,advance,notes});
+    saveToLocal(); hideModal(); render(); resetForm();
+    const h=getHouse(hid);
+    showToast(`<i class="fa-solid fa-check-circle mr-1"></i> Booked ${name} → ${h.label}`,'success');
+}
+
+function showBookingDetail(id) {
+    const b=bookings.find(x=>x.id===id); if(!b)return;
+    const h=getHouse(b.houseId); const boat=b.service.includes('boat');
+    const isBoat=isBoatOnly(b);
+    const sl=b.service==='stay'?'Stay Only':b.service==='boat'?'Boat Trip Only':'Stay + Boat Trip';
+    const adv=parseFloat(b.advance)||0;
+    const nights=isBoat?null:daysBetween(b.checkIn,b.checkOut);
+
+    let advDisplay='';
+    if(adv>0) advDisplay=`<div class="p-4 rounded-xl mb-4 flex items-center justify-between" style="background:var(--avail-bg);border:1px solid rgba(39,174,96,0.2)"><span class="text-sm font-medium" style="color:var(--fg-sec)">Advance Paid</span><span class="text-2xl font-bold" style="color:var(--avail)">${formatMoney(adv)} <span class="text-sm font-medium">MAD</span></span></div>`;
+    else advDisplay=`<div class="p-4 rounded-xl mb-4 flex items-center justify-between" style="background:var(--bg)"><span class="text-sm font-medium" style="color:var(--muted)">Advance Paid</span><span class="text-lg font-bold" style="color:var(--muted)">Not yet</span></div>`;
+
+    showModal(`<div class="flex items-start justify-between mb-6">
+        <div class="flex items-center gap-3">
+            <img src="https://z-cdn-media.chatglm.cn/files/4b1a1f58-2971-4127-bab8-1ccf39a2d42c.jpg?auth_key=1885885310-3086784c711840eda3f4adca9bf596dd-0-b1f7d999b6c137017d2094a7dbdcf723" alt="Logo" class="logo-img-sm opacity-50">
+            <div><h3 class="font-display text-xl font-semibold" style="color:var(--fg)">${b.name}</h3><p class="text-sm" style="color:var(--muted)">${b.phone}</p></div>
+        </div>
+        <button onclick="hideModal()" class="w-8 h-8 rounded-lg flex items-center justify-center" style="color:var(--muted);cursor:pointer;background:var(--bg);border:none;font-size:14px"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+<div class="p-4 rounded-xl" style="background:var(--bg)"><p class="text-xs uppercase tracking-wider mb-1.5" style="color:var(--muted)">House</p><p class="text-sm font-bold" style="color:var(--muted)">${isBoat?'—':h.label}</p></div>
+        <div class="p-4 rounded-xl" style="background:var(--bg)"><p class="text-xs uppercase tracking-wider mb-1.5" style="color:var(--muted)">Service</p><p class="text-sm font-bold" style="color:var(--fg)">${sl}${boat?' <i class="fa-solid fa-ship text-xs" style="color:var(--boat)"></i>':''}</p></div>
+        <div class="p-4 rounded-xl" style="background:var(--bg)"><p class="text-xs uppercase tracking-wider mb-1.5" style="color:var(--muted)">${isBoat?'Trip Date':'Check-in'}</p><p class="text-sm font-bold" style="color:var(--fg)">${formatDateFull(b.checkIn)}</p></div>
+        ${isBoat?'':`<div class="p-4 rounded-xl" style="background:var(--bg)"><p class="text-xs uppercase tracking-wider mb-1.5" style="color:var(--muted)">Check-out</p><p class="text-sm font-bold" style="color:var(--fg)">${formatDateFull(b.checkOut)}</p></div>`}
+    </div>
+    ${nights!==null?`<div class="p-4 rounded-xl mb-4 flex items-center justify-between" style="background:var(--accent-bg);border:1px solid rgba(27,107,147,0.15)"><span class="text-sm font-medium" style="color:var(--fg-sec)">Duration</span><span class="text-2xl font-bold" style="color:var(--accent)">${nights} <span class="text-sm font-medium">Night${nights!==1?'s':''}</span></span></div>`:''}
+    ${advDisplay}
+    ${b.notes?`<div class="p-4 rounded-xl mb-5" style="background:var(--bg)"><p class="text-xs uppercase tracking-wider mb-1.5" style="color:var(--muted)">Notes</p><p class="text-sm" style="color:var(--fg-sec)">${b.notes}</p></div>`:''}
+    <div class="flex flex-col gap-2">
+        <button class="btn btn-success w-full justify-center" onclick="editBooking(${b.id})"><i class="fa-solid fa-pen"></i> Edit Booking</button>
+        <button class="btn btn-danger w-full justify-center" onclick="confirmDelete(${b.id})"><i class="fa-solid fa-trash"></i> Cancel This Booking</button>
+    </div>`);
+}
+
+function confirmDelete(id) {
+    const b=bookings.find(x=>x.id===id); if(!b)return;
+    const dateInfo=isBoatOnly(b)?formatDate(b.checkIn):`${formatDate(b.checkIn)} → ${formatDate(b.checkOut)}`;
+    showModal(`<div class="text-center py-4">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style="background:var(--danger-bg)"><i class="fa-solid fa-triangle-exclamation text-2xl" style="color:var(--danger)"></i></div>
+        <h3 class="font-display text-xl font-semibold mb-2" style="color:var(--fg)">Cancel Booking?</h3>
+        <p class="text-sm mb-7" style="color:var(--muted)">Remove <strong style="color:var(--fg)">${b.name}</strong><br>${dateInfo}</p>
+        <div class="flex gap-3 justify-center"><button class="btn btn-ghost" onclick="hideModal()">Keep</button><button class="btn btn-danger" onclick="deleteBooking(${id})"><i class="fa-solid fa-trash"></i> Delete</button></div>
+    </div>`);
+}
+
+function deleteBooking(id) {
+    bookings=bookings.filter(b=>b.id!==id);
+    saveToLocal(); hideModal(); render();
+    showToast('<i class="fa-solid fa-trash mr-1"></i> Booking cancelled.','warning');
+}
+
+function resetForm() {
+    document.getElementById('booking-form').reset();
+    document.getElementById('boat-hint').classList.remove('visible');
+    document.getElementById('checkout-row').classList.remove('field-hidden');
+    // Reset to no service selected -> hide the rest of the fields
+    document.getElementById('f-service').value = '';
+    document.getElementById('f-type').value = 'S+1';
+    document.getElementById('f-checkin').value = '';
+    document.getElementById('f-checkout').value = '';
+    document.getElementById('f-advance').value = '';
+    document.getElementById('f-notes').value = '';
+    onServiceChange();
+    // Restore "New Booking" mode (in case we were editing)
+    editingId = null;
+    document.getElementById('form-section-title').textContent = 'New Booking';
+    document.getElementById('form-section-title').style.color = 'var(--fg)';
+    document.getElementById('form-section-icon').className = 'fa-solid fa-plus-circle';
+    const btn = document.querySelector('#booking-form button[type="submit"]');
+    btn.innerHTML = '<i class="fa-solid fa-check"></i> Add Booking';
+    btn.classList.remove('btn-success');
+    btn.classList.add('btn-primary');
+}
+
+// ===== INIT =====
+if (!loadFromLocal()) { bookings=JSON.parse(JSON.stringify(DEFAULT_BOOKINGS)); nextId=20; saveToLocal(); }
+render();
+// Start with no service selected -> the rest of the form stays hidden
+resetForm();
+document.getElementById('f-checkin').value = todayStr();
+document.getElementById('f-checkout').value = addDays(todayStr(), 1);
+</script>
+</body>
+</html>
