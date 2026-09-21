@@ -1,0 +1,211 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dar Haja Zekia — Guesthouse Management System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="script.js" defer></script>
+</head>
+<body>
+
+<div class="toast-container" id="toasts"></div>
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)hideModal()">
+    <div class="modal-box" id="modal-content"></div>
+</div>
+<input type="file" id="import-file-input" accept=".json" onchange="handleImportFile(event)">
+
+<header class="header-bar">
+    <div class="header-inner">
+        <div class="brand-wrap">
+            <img src="img/logo.jpg" alt="Dar Haja Zekia" class="logo-img">
+            <div>
+                <h1 class="brand-title">Dar Haja Zekia</h1>
+                <p class="brand-subtitle">Guesthouse Management System</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div class="save-indicator"><span class="dot"></span><span id="save-time">Saved locally</span></div>
+            <button class="ghost-button small-button" onclick="goToToday()"><i class="fa-regular fa-calendar"></i> Today</button>
+        </div>
+    </div>
+</header>
+
+<main class="main-shell">
+
+    <!-- Backup Bar -->
+    <section class="backup-bar">
+        <div class="backup-row">
+            <div class="backup-left">
+                <div class="backup-icon">
+                    <i class="fa-solid fa-hard-drive"></i>
+                </div>
+                <div>
+                    <p class="backup-title">Save Bookings to Your Computer</p>
+                    <p class="backup-text">Export a backup file or restore from a previous save</p>
+                </div>
+            </div>
+            <div class="backup-actions">
+                <button class="primary-button small-button" onclick="exportToFile()"><i class="fa-solid fa-download"></i> Export Backup</button>
+                <button class="outline-button small-button" onclick="triggerImport()"><i class="fa-solid fa-upload"></i> Import Backup</button>
+            </div>
+        </div>
+        <div class="backup-meta" style="color:var(--muted)">
+            <span><i class="fa-solid fa-database"></i> <span id="total-bookings-count">0</span> bookings</span>
+            <span><i class="fa-regular fa-clock"></i> Last saved: <span id="last-saved-time">—</span></span>
+            <span><i class="fa-solid fa-file-arrow-down"></i> Last export: <span id="last-export-time">Never</span></span>
+        </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-row" id="stats-row"></section>
+
+    <!-- Calendar Controls -->
+    <section class="toolbar-row">
+        <div class="filter-group">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All Houses</button>
+            <button class="filter-btn" data-filter="S+1" onclick="setFilter('S+1')"><span class="filter-color-dot dot-s1"></span>S+1</button>
+            <button class="filter-btn" data-filter="S+2" onclick="setFilter('S+2')"><span class="filter-color-dot dot-s2"></span>S+2</button>
+            <button class="filter-btn" data-filter="S+3" onclick="setFilter('S+3')"><span class="filter-color-dot dot-s3"></span>S+3</button>
+        </div>
+        <div class="calendar-controls">
+            <button class="ghost-button small-button" onclick="shiftView(-7)"><i class="fa-solid fa-chevron-left"></i></button>
+            <span class="view-label" id="view-label"></span>
+            <button class="ghost-button small-button" onclick="shiftView(7)"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+    </section>
+
+    <!-- Calendar -->
+    <section class="section-card calendar-card">
+        <div class="calendar-scroll" id="calendar-scroll">
+            <div class="calendar-grid" id="calendar-grid"></div>
+        </div>
+        <div class="legend-row">
+            <div class="legend-item" style="color:var(--muted)"><div class="legend-dot" style="background:var(--avail);opacity:0.6"></div> Available</div>
+            <div class="legend-item" style="color:var(--muted)"><div class="legend-dot" style="background:var(--s1)"></div> S+1 Booked</div>
+            <div class="legend-item" style="color:var(--muted)"><div class="legend-dot" style="background:var(--s2)"></div> S+2 Booked</div>
+            <div class="legend-item" style="color:var(--muted)"><div class="legend-dot" style="background:var(--s3)"></div> S+3 Booked</div>
+            <div class="legend-item" style="color:var(--muted)"><div style="width:10px;height:10px;border-radius:3px;border:2px dashed var(--boat-border);background:var(--boat-bg);flex-shrink:0"></div> Boat Trip Only</div>
+        </div>
+    </section>
+
+    <!-- Form + Schedule -->
+    <section class="booking-layout">
+<div class="section-card left-panel" id="booking-form-section">
+            <div class="section-header">
+                <div class="icon-box" style="background:var(--accent-bg)"><i id="form-section-icon" class="fa-solid fa-plus-circle" style="color:var(--accent)"></i></div>
+                <h2 id="form-section-title" class="section-title">New Booking</h2>
+            </div>
+
+            <!-- Boat trip hint (shown only for boat-only services) -->
+            <div class="boat-hint" id="boat-hint">
+                <i class="fa-solid fa-ship" style="color:var(--boat);font-size:16px"></i>
+                <p class="boat-hint-text"><strong>Boat Trip Only</strong> — just pick the trip date, no check-out needed. This won't block the house.</p>
+            </div>
+
+            <form id="booking-form" onsubmit="handleBookingSubmit(event)">
+<!-- Service Type first, then the rest of the fields appear after selection -->
+                <div class="field-block">
+<label class="field-label">Service Type</label>
+                    <select class="form-input" id="f-service" onchange="onServiceChange()" required>
+                        <option value="">Select a service type...</option>
+                        <option value="stay">Stay Only</option>
+                        <option value="boat">Boat Trip Only</option>
+                        <option value="stay+boat">Stay + Boat Trip</option>
+                    </select>
+                </div>
+                <div id="form-rest" class="field-hidden">
+                <div class="field-row">
+                    <div><label class="field-label">Customer Name</label><input type="text" class="form-input" id="f-name" placeholder="Full name" required></div>
+                    <div><label class="field-label">Phone</label><input type="tel" class="form-input" id="f-phone" placeholder="+212 6XX XXX XXX" required></div>
+                </div>
+                <div class="field-row">
+                    <div id="field-house"><label class="field-label">House Type</label>
+                        <select class="form-input" id="f-type">
+                            <option value="S+1">S+1</option>
+                            <option value="S+2">S+2</option>
+                            <option value="S+3">S+3</option>
+                        </select>
+                    </div>
+                    <div id="field-checkin"><label class="field-label">Check-in Date</label><input type="date" class="form-input" id="f-checkin" required></div>
+                </div>
+                <!-- Check-out: hidden for boat-only -->
+                <div class="field-row" id="checkout-row">
+                    <div><label class="field-label">Check-out Date</label><input type="date" class="form-input" id="f-checkout"></div>
+                    <div></div>
+                </div>
+                <div class="field-row field-row-last">
+                    <div>
+                        <label class="field-label">Advance Paid (MAD)</label>
+                        <div style="position:relative">
+                            <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px;font-weight:600">MAD</span>
+                            <input type="number" class="form-input" id="f-advance" placeholder="0" min="0" step="0.01" style="padding-left:58px">
+                        </div>
+                    </div>
+                    <div><label class="field-label">Notes</label><input type="text" class="form-input" id="f-notes" placeholder="Special requests..."></div>
+                </div>
+                <div class="button-row">
+                    <button type="submit" class="primary-button"><i class="fa-solid fa-check"></i> Add Booking</button>
+                    <button type="button" class="ghost-button" onclick="resetForm()">Clear</button>
+                </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="section-card right-panel">
+            <div class="section-header section-header-spaced">
+                <div class="icon-box" style="background:var(--accent-bg)"><i class="fa-regular fa-clock" style="color:var(--accent)"></i></div>
+                <h2 class="section-title">Today's Schedule</h2>
+            </div>
+            <div id="today-schedule" class="schedule-list schedule-list-bottom"></div>
+            <div class="schedule-header" style="border-top:1px solid var(--border-light)">
+                <div class="mini-icon-box" style="background:var(--boat-bg)"><i class="fa-solid fa-ship boat-icon-small" style="color:var(--boat)"></i></div>
+                <h3 class="small-section-title">Upcoming Boat Trips</h3>
+            </div>
+<div id="boat-trips" class="schedule-list boat-trips-list"></div>
+        </div>
+    </section>
+
+<!-- All Bookings Table -->
+    <section class="section-card table-card">
+        <div class="table-header">
+            <div class="table-title-row">
+                <div class="icon-box" style="background:var(--accent-bg)"><i class="fa-solid fa-list" style="color:var(--accent)"></i></div>
+                <h2 class="section-title">All Bookings</h2>
+            </div>
+            <span class="booking-count-badge" id="booking-count"></span>
+        </div>
+        <div class="booking-filters">
+            <button class="filter-btn active" data-bfilter="all" onclick="setBookingsFilter('all')">All</button>
+            <button class="filter-btn" data-bfilter="stay" onclick="setBookingsFilter('stay')">Stay Only</button>
+            <button class="filter-btn" data-bfilter="boat" onclick="setBookingsFilter('boat')">Boat Trip Only</button>
+            <button class="filter-btn" data-bfilter="stay+boat" onclick="setBookingsFilter('stay+boat')">Stay + Boat</button>
+        </div>
+        <div class="booking-table-wrap">
+            <table class="booking-table">
+                <thead>
+                    <tr style="color:var(--muted); border-bottom:1px solid var(--border-light)">
+                        <th class="table-head">Guest</th>
+                        <th class="table-head">House</th>
+                        <th class="table-head">Service</th>
+                        <th class="table-head">Date / Dates</th>
+                        <th class="table-head">Nights</th>
+                        <th class="table-head">Advance</th>
+                        <th class="table-head">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="bookings-tbody"></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<footer class="page-footer">
+    <img src="img/logo.jpg" alt="Dar Haja Zekia" class="logo-img-sm footer-logo">
+    <p class="small-text" style="color:var(--muted)">Dar Haja Zekia — SÉJOUR · DÉTENTE · NATURE · SOUVENIRS</p>
+</footer>
+
+</body>
+</html>
